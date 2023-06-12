@@ -28,11 +28,11 @@ RUN sleep 10
 ENV USERNAME=myuser
 ENV PASSWORD=mypassword
 ENV DB=mydatabase
-RUN mysql -u root -e "CREATE USER '$USERNAME'@'localhost' IDENTIFIED BY '$PASSWORD';"
-RUN mysql -u root -e "GRANT ALL PRIVILEGES ON *.* TO '$USERNAME'@'localhost';"
-RUN mysql -u root -e "CREATE DATABASE $DB;"
-RUN mysql -u root -e "FLUSH PRIVILEGES;"
-RUN mysql -u root -e "SET GLOBAL log_bin_trust_function_creators = 1;"
+RUN mysql -h ubuntu -P 3306 -u root -p -e "CREATE USER '$USERNAME'@'localhost' IDENTIFIED BY '$PASSWORD';" && \
+    mysql -h ubuntu -P 3306 -u root -p -e "GRANT ALL PRIVILEGES ON *.* TO '$USERNAME'@'localhost';" && \
+    mysql -h ubuntu -P 3306 -u root -p -e "CREATE DATABASE $DB;" && \
+    mysql -h ubuntu -P 3306 -u root -e "FLUSH PRIVILEGES;" && \
+    mysql -h ubuntu -P 3306 -u root -e "SET GLOBAL log_bin_trust_function_creators = 1;"
 
 # Import Zabbix database schema
 RUN zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -u$USERNAME -p$PASSWORD $DB
