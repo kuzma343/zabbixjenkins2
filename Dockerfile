@@ -16,7 +16,7 @@ RUN bash mariadb_repo_setup --mariadb-server-version=10.6
 RUN apt-get update && apt-get -y install mariadb-common mariadb-server-10.6 mariadb-client-10.6
 
 # Start and enable MariaDB service
-RUN systemctl start mysql && systemctl enable mysql
+RUN service mysql start && service mysql enable
 
 # Wait for MySQL service to start
 RUN sleep 10
@@ -28,8 +28,8 @@ ENV DB=mydatabase
 RUN mysql -h localhost -P 3306 -u root -p -e "CREATE USER '$USERNAME'@'localhost' IDENTIFIED BY '$PASSWORD';" && \
     mysql -h localhost -P 3306 -u root -p -e "GRANT ALL PRIVILEGES ON *.* TO '$USERNAME'@'localhost';" && \
     mysql -h localhost -P 3306 -u root -p -e "CREATE DATABASE $DB;" && \
-    mysql -h localhost -P 3306 -u root -e "FLUSH PRIVILEGES;" && \
-    mysql -h localhost -P 3306 -u root -e "SET GLOBAL log_bin_trust_function_creators = 1;"
+    mysql -h localhost -P 3306 -u root -p -e "FLUSH PRIVILEGES;" && \
+    mysql -h localhost -P 3306 -u root -p -e "SET GLOBAL log_bin_trust_function_creators = 1;"
 
 # Import Zabbix database schema
 RUN zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -u$USERNAME -p$PASSWORD $DB
@@ -52,5 +52,6 @@ RUN ufw reload
 
 # Start Zabbix services and Apache
 RUN service zabbix-server start && service zabbix-agent start
-RUN systemctl enable zabbix-server zabbix-agent
+RUN update-rc.d zabbix-server enable && update-rc.d zabbix-agent enable
 RUN service apache2 restart && service apache2 enable
+
