@@ -14,7 +14,9 @@ RUN apt-get update && apt-get -y install zabbix-server-mysql zabbix-frontend-php
 RUN curl -LsS -O https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
 RUN bash mariadb_repo_setup --mariadb-server-version=10.6
 RUN apt-get update && apt-get -y install mariadb-common mariadb-server-10.6 mariadb-client-10.6
-RUN systemctl start mariadb && systemctl enable mariadb
+
+# Start and enable MariaDB service
+RUN service mysql start && service mysql enable
 
 # Create MariaDB user and database
 ENV USERNAME=myuser
@@ -46,7 +48,6 @@ RUN ufw allow 80/tcp
 RUN ufw reload
 
 # Start Zabbix services and Apache
-RUN systemctl restart zabbix-server zabbix-agent
+RUN service zabbix-server start && service zabbix-agent start
 RUN systemctl enable zabbix-server zabbix-agent
-RUN systemctl restart apache2
-RUN systemctl enable apache2
+RUN service apache2 restart && service apache2 enable
