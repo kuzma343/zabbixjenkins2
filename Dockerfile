@@ -16,7 +16,7 @@ RUN bash mariadb_repo_setup --mariadb-server-version=10.6
 RUN apt-get update && apt-get -y install mariadb-common mariadb-server-10.6 mariadb-client-10.6
 
 # Start and enable MariaDB service
-RUN service mysql start && service mysql enable
+RUN systemctl start mysql && systemctl enable mysql
 
 # Wait for MySQL service to start
 RUN sleep 10
@@ -25,11 +25,11 @@ RUN sleep 10
 ENV USERNAME=myuser
 ENV PASSWORD=mypassword
 ENV DB=mydatabase
-RUN mysql -h ubuntu -P 3306 -u root -p -e "CREATE USER '$USERNAME'@'localhost' IDENTIFIED BY '$PASSWORD';" && \
-    mysql -h ubuntu -P 3306 -u root -p -e "GRANT ALL PRIVILEGES ON *.* TO '$USERNAME'@'localhost';" && \
-    mysql -h ubuntu -P 3306 -u root -p -e "CREATE DATABASE $DB;" && \
-    mysql -h ubuntu -P 3306 -u root -e "FLUSH PRIVILEGES;" && \
-    mysql -h ubuntu -P 3306 -u root -e "SET GLOBAL log_bin_trust_function_creators = 1;"
+RUN mysql -h localhost -P 3306 -u root -p -e "CREATE USER '$USERNAME'@'localhost' IDENTIFIED BY '$PASSWORD';" && \
+    mysql -h localhost -P 3306 -u root -p -e "GRANT ALL PRIVILEGES ON *.* TO '$USERNAME'@'localhost';" && \
+    mysql -h localhost -P 3306 -u root -p -e "CREATE DATABASE $DB;" && \
+    mysql -h localhost -P 3306 -u root -e "FLUSH PRIVILEGES;" && \
+    mysql -h localhost -P 3306 -u root -e "SET GLOBAL log_bin_trust_function_creators = 1;"
 
 # Import Zabbix database schema
 RUN zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -u$USERNAME -p$PASSWORD $DB
