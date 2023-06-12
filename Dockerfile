@@ -17,23 +17,17 @@ RUN wget https://repo.zabbix.com/zabbix/6.2/ubuntu/pool/main/z/zabbix-release/za
 RUN dpkg -i zabbix-release_6.2-4+ubuntu22.04_all.deb
 RUN apt-get update && apt-get -y install zabbix-server-pgsql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent
 
-# Initialize PostgreSQL database
-USER postgres
-RUN /etc/init.d/postgresql start && \
-    psql --command "CREATE USER myuser WITH PASSWORD 'mypassword';" && \
-    createdb -O myuser mydatabase && \
-    psql --command "ALTER USER myuser CREATEDB;"
-USER root
-
-# Import Zabbix database schema into PostgreSQL
-RUN schema_location=$(find / -name "schema.sql.gz" -print -quit) && \
-    su - postgres -c "pg_restore -U myuser -d mydatabase $schema_location"
-
-# Configure Zabbix server to use PostgreSQL
-RUN sed -i "s/DBHost=.*/DBHost=localhost/" /etc/zabbix/zabbix_server.conf
-RUN sed -i "s/DBName=.*/DBName=mydatabase/" /etc/zabbix/zabbix_server.conf
-RUN sed -i "s/DBUser=.*/DBUser=myuser/" /etc/zabbix/zabbix_server.conf
-RUN sed -i "s/#\s*DBPassword=.*/DBPassword=mypassword/" /etc/zabbix/zabbix_server.conf
+# Initialize PostgreSQL database, import Zabbix database schema, and configure Zabbix server
+RUN service postgresql start && \
+    su - postgres -c "psql --command \"CREATE USER myuser WITH PASSWORD 'mypassword';\"" && \
+    su - postgres -c "createdb -O myuser mydatabase" && \
+    schema_location=$(find / -name "schema.sql.gz" -print -quit) && \
+    cp $schema_location /tmp/schema.sql.gz && \
+    su - postgres -c "pg_restore -U myuser -d mydatabase /tmp/schema.sql.gz" && \
+    sed -i "s/DBHost=.*/DBHost=localhost/" /etc/zabbix/zabbix_server.conf && \
+    sed -i "s/DBName=.*/DBName=mydatabase/" /etc/zabbix/zabbix_server.conf && \
+    sed -i "s/DBUser=.*/DBUser=myuser/" /etc/zabbix/zabbix_server.conf && \
+    sed -i "s/#\s*DBPassword=.*/DBPassword=mypassword/" /etc/zabbix/zabbix_server.conf
 
 # Configure firewall
 RUN ufw enable
@@ -49,4 +43,5 @@ RUN update-rc.d zabbix-server enable && update-rc.d zabbix-agent enable
 RUN service apache2 restart && service apache2 enable
 
 CMD ["/usr/sbin/init"]
+
 
