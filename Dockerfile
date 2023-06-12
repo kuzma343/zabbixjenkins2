@@ -1,6 +1,9 @@
 # Використовуємо базовий образ Ubuntu 18.04
 FROM ubuntu:18.04
 
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Paris
+
 # Оновлюємо пакетні списки та встановлюємо необхідні пакети
 RUN apt-get update && apt-get install -y \
     apache2 \
