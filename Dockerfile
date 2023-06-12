@@ -5,51 +5,36 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Paris
 
 # Install dependencies and Zabbix
-RUN apt-get update && apt-get install -y wget gnupg2 software-properties-common curl
+RUN apt-get update && apt-get install -y wget gnupg2 software-properties-common curl ufw
+
+# Install PostgreSQL
+RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+RUN echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
+RUN apt-get update && apt-get -y install postgresql-13
+
+# Install Zabbix
 RUN wget https://repo.zabbix.com/zabbix/6.2/ubuntu/pool/main/z/zabbix-release/zabbix-release_6.2-4%2Bubuntu22.04_all.deb
 RUN dpkg -i zabbix-release_6.2-4+ubuntu22.04_all.deb
-RUN apt-get update && apt-get -y install zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent
+RUN apt-get update && apt-get -y install zabbix-server-pgsql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent
 
-# Install MariaDB
-RUN curl -LsS -O https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
-RUN bash mariadb_repo_setup --mariadb-server-version=10.6
-RUN apt-get update && apt-get -y install mariadb-common mariadb-server-10.6 mariadb-client-10.6
+# Initialize PostgreSQL database
+USER postgres
+RUN /etc/init.d/postgresql start && \
+    psql --command "CREATE USER myuser WITH PASSWORD 'mypassword';" && \
+    createdb -O myuser mydatabase && \
+    psql --command "ALTER USER myuser CREATEDB;"
+USER root
 
-# Initialize MariaDB database
-RUN mysql_install_db --user=mysql --ldata=/var/lib/mysql/
+# Import Zabbix database schema into PostgreSQL
+RUN su - postgres -c "pg_restore -U myuser -d mydatabase /usr/share/zabbix-sql-scripts/postgresql/schema.sql.gz"
 
-# Start and enable MariaDB service
-RUN service mysql start && service mysql enable
-
-# Wait for MySQL service to start
-RUN sleep 10
-
-# Set root password and secure installation
-RUN mysqladmin -u root password 'mypassword'
-RUN mysql_secure_installation --use-default
-
-# Create MariaDB user and database
-ENV USERNAME=myuser
-ENV PASSWORD=mypassword
-ENV DB=mydatabase
-RUN mysql -h localhost -P 3306 -u root -p'mypassword' -e "CREATE USER '$USERNAME'@'localhost' IDENTIFIED BY '$PASSWORD';" && \
-    mysql -h localhost -P 3306 -u root -p'mypassword' -e "GRANT ALL PRIVILEGES ON *.* TO '$USERNAME'@'localhost';" && \
-    mysql -h localhost -P 3306 -u root -p'mypassword' -e "CREATE DATABASE $DB;" && \
-    mysql -h localhost -P 3306 -u root -p'mypassword' -e "FLUSH PRIVILEGES;" && \
-    mysql -h localhost -P 3306 -u root -p'mypassword' -e "SET GLOBAL log_bin_trust_function_creators = 1;"
-
-# Import Zabbix database schema
-RUN zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -u$USERNAME -p$PASSWORD $DB
-
-RUN mysql -u root -p'mypassword' -e "SET GLOBAL log_bin_trust_function_creators = 0;"
-
-# Configure Zabbix server
-RUN sed -i "s/DBName=.*/DBName=${DB}/" /etc/zabbix/zabbix_server.conf
-RUN sed -i "s/DBUser=.*/DBUser=${USERNAME}/" /etc/zabbix/zabbix_server.conf
-RUN sed -i "s/#\s*DBPassword=.*/DBPassword=${PASSWORD}/" /etc/zabbix/zabbix_server.conf
+# Configure Zabbix server to use PostgreSQL
+RUN sed -i "s/DBHost=.*/DBHost=localhost/" /etc/zabbix/zabbix_server.conf
+RUN sed -i "s/DBName=.*/DBName=mydatabase/" /etc/zabbix/zabbix_server.conf
+RUN sed -i "s/DBUser=.*/DBUser=myuser/" /etc/zabbix/zabbix_server.conf
+RUN sed -i "s/#\s*DBPassword=.*/DBPassword=mypassword/" /etc/zabbix/zabbix_server.conf
 
 # Configure firewall
-RUN apt-get -y install ufw
 RUN ufw enable
 RUN ufw allow 10050/tcp
 RUN ufw allow 10051/tcp
@@ -62,4 +47,5 @@ RUN service zabbix-server start && service zabbix-agent start
 RUN update-rc.d zabbix-server enable && update-rc.d zabbix-agent enable
 RUN service apache2 restart && service apache2 enable
 
+CMD ["/usr/sbin/init"]
 
