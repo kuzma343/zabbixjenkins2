@@ -21,7 +21,7 @@ RUN apt-get update && apt-get -y install zabbix-server-pgsql zabbix-frontend-php
 RUN service postgresql start && \
     su - postgres -c "psql --command \"CREATE USER myuser WITH PASSWORD 'mypassword';\"" && \
     su - postgres -c "createdb -O myuser mydatabase" && \
-    schema_location=$(find / -type f -name "schema.sql.gz" -print -quit) && \
+    schema_location=$(find / -type f -name "schema.sql.gz" -path "/proc" -prune -o -print -quit) && \
     cp $schema_location /tmp/schema.sql.gz && \
     su - postgres -c "pg_restore -U myuser -d mydatabase /tmp/schema.sql.gz" && \
     sed -i "s/DBHost=.*/DBHost=localhost/" /etc/zabbix/zabbix_server.conf && \
