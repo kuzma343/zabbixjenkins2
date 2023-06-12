@@ -15,6 +15,9 @@ RUN curl -LsS -O https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
 RUN bash mariadb_repo_setup --mariadb-server-version=10.6
 RUN apt-get update && apt-get -y install mariadb-common mariadb-server-10.6 mariadb-client-10.6
 
+# Configure MariaDB
+RUN sed -i 's/bind-address/#bind-address/g' /etc/mysql/my.cnf
+
 # Start and enable MariaDB service
 RUN service mysql start && update-rc.d mysql defaults
 
@@ -25,16 +28,16 @@ RUN sleep 10
 ENV USERNAME=myuser
 ENV PASSWORD=mypassword
 ENV DB=mydatabase
-RUN mysql -u root --host=localhost --port=3306 -e "CREATE USER '$USERNAME'@'localhost' IDENTIFIED BY '$PASSWORD';"
-RUN mysql -u root --host=localhost --port=3306 -e "GRANT ALL PRIVILEGES ON *.* TO '$USERNAME'@'localhost';"
-RUN mysql -u root --host=localhost --port=3306 -e "CREATE DATABASE $DB;"
-RUN mysql -u root --host=localhost --port=3306 -e "FLUSH PRIVILEGES;"
-RUN mysql -u root --host=localhost --port=3306 -e "SET GLOBAL log_bin_trust_function_creators = 1;"
+RUN mysql -u root -e "CREATE USER '$USERNAME'@'localhost' IDENTIFIED BY '$PASSWORD';"
+RUN mysql -u root -e "GRANT ALL PRIVILEGES ON *.* TO '$USERNAME'@'localhost';"
+RUN mysql -u root -e "CREATE DATABASE $DB;"
+RUN mysql -u root -e "FLUSH PRIVILEGES;"
+RUN mysql -u root -e "SET GLOBAL log_bin_trust_function_creators = 1;"
 
 # Import Zabbix database schema
-RUN zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -u$USERNAME -p$PASSWORD -h localhost -P 3306 $DB
+RUN zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -u$USERNAME -p$PASSWORD $DB
 
-RUN mysql -u root --host=localhost --port=3306 -e "SET GLOBAL log_bin_trust_function_creators = 0;"
+RUN mysql -u root -e "SET GLOBAL log_bin_trust_function_creators = 0;"
 
 # Configure Zabbix server
 RUN sed -i "s/DBName=.*/DBName=${DB}/" /etc/zabbix/zabbix_server.conf
