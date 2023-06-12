@@ -16,10 +16,7 @@ RUN bash mariadb_repo_setup --mariadb-server-version=10.6
 RUN apt-get update && apt-get -y install mariadb-common mariadb-server-10.6 mariadb-client-10.6
 
 # Start and enable MariaDB service
-RUN service mysql start && service mysql enable
-
-# Wait for MySQL service to start
-RUN sleep 10
+RUN mysqld & sleep 10 && mysqladmin -u root password 'mypassword'
 
 # Create MariaDB user and database
 ENV USERNAME=myuser
@@ -34,7 +31,7 @@ RUN mysql -h localhost -P 3306 -u root -p -e "CREATE USER '$USERNAME'@'localhost
 # Import Zabbix database schema
 RUN zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -u$USERNAME -p$PASSWORD $DB
 
-RUN mysql -u root -e "SET GLOBAL log_bin_trust_function_creators = 0;"
+RUN mysql -u root -p -e "SET GLOBAL log_bin_trust_function_creators = 0;"
 
 # Configure Zabbix server
 RUN sed -i "s/DBName=.*/DBName=${DB}/" /etc/zabbix/zabbix_server.conf
