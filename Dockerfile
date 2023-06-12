@@ -15,23 +15,33 @@ RUN curl -LsS -O https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
 RUN bash mariadb_repo_setup --mariadb-server-version=10.6
 RUN apt-get update && apt-get -y install mariadb-common mariadb-server-10.6 mariadb-client-10.6
 
+# Initialize MariaDB database
+RUN mysql_install_db --user=mysql --ldata=/var/lib/mysql/
+
 # Start and enable MariaDB service
-RUN mysqld & sleep 10 && mysqladmin -u root password 'mypassword'
+RUN service mysql start && service mysql enable
+
+# Wait for MySQL service to start
+RUN sleep 10
+
+# Set root password and secure installation
+RUN mysqladmin -u root password 'mypassword'
+RUN mysql_secure_installation --use-default
 
 # Create MariaDB user and database
 ENV USERNAME=myuser
 ENV PASSWORD=mypassword
 ENV DB=mydatabase
-RUN mysql -h localhost -P 3306 -u root -p -e "CREATE USER '$USERNAME'@'localhost' IDENTIFIED BY '$PASSWORD';" && \
-    mysql -h localhost -P 3306 -u root -p -e "GRANT ALL PRIVILEGES ON *.* TO '$USERNAME'@'localhost';" && \
-    mysql -h localhost -P 3306 -u root -p -e "CREATE DATABASE $DB;" && \
-    mysql -h localhost -P 3306 -u root -p -e "FLUSH PRIVILEGES;" && \
-    mysql -h localhost -P 3306 -u root -p -e "SET GLOBAL log_bin_trust_function_creators = 1;"
+RUN mysql -h localhost -P 3306 -u root -p'mypassword' -e "CREATE USER '$USERNAME'@'localhost' IDENTIFIED BY '$PASSWORD';" && \
+    mysql -h localhost -P 3306 -u root -p'mypassword' -e "GRANT ALL PRIVILEGES ON *.* TO '$USERNAME'@'localhost';" && \
+    mysql -h localhost -P 3306 -u root -p'mypassword' -e "CREATE DATABASE $DB;" && \
+    mysql -h localhost -P 3306 -u root -p'mypassword' -e "FLUSH PRIVILEGES;" && \
+    mysql -h localhost -P 3306 -u root -p'mypassword' -e "SET GLOBAL log_bin_trust_function_creators = 1;"
 
 # Import Zabbix database schema
 RUN zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -u$USERNAME -p$PASSWORD $DB
 
-RUN mysql -u root -p -e "SET GLOBAL log_bin_trust_function_creators = 0;"
+RUN mysql -u root -p'mypassword' -e "SET GLOBAL log_bin_trust_function_creators = 0;"
 
 # Configure Zabbix server
 RUN sed -i "s/DBName=.*/DBName=${DB}/" /etc/zabbix/zabbix_server.conf
@@ -51,4 +61,5 @@ RUN ufw reload
 RUN service zabbix-server start && service zabbix-agent start
 RUN update-rc.d zabbix-server enable && update-rc.d zabbix-agent enable
 RUN service apache2 restart && service apache2 enable
+
 
