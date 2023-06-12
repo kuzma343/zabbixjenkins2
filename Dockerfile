@@ -1,83 +1,59 @@
-# Використовуємо базовий образ Ubuntu 18.04
-FROM ubuntu:18.04
+FROM ubuntu:22.04
 
+# Set the timezone non-interactively
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Paris
 
-# Оновлюємо пакетні списки та встановлюємо необхідні пакети
-RUN apt-get update && apt-get install -y \
-    apache2 \
-    php \
-    php-mysql \
-    libapache2-mod-php \
-    mysql-client \
-    snmp \
-    snmpd \
-    fping \
-    libiksemel-dev \
-    libxml2-dev \
-    libsnmp-dev \
-    libevent-dev \
-    libcurl4-openssl-dev \
-    libpcre3-dev \
-    libssl-dev \
-    libffi-dev \
-    libopenipmi-dev \
-    libssh2-1-dev \
-    libssh2-1 \
-    libssh2-1-dev \
-    libopenipmi-dev \
-    libldap2-dev \
-    libcurl3-dev \
-    libmysqlclient-dev \
-    libpq-dev \
-    libxml2-dev \
-    libjson-c-dev \
-    libyajl-dev \
-    libiksemel-utils \
-    libiksemel-dev \
-    libxml2-utils \
-    libsnmp-dev \
-    libevent-dev \
-    libpcre3-dev \
-    libssl-dev \
-    libffi-dev \
-    libopenipmi-dev \
-    libssh2-1-dev \
-    libopenipmi-dev \
-    libldap2-dev \
-    libcurl3-dev \
-    libmysqlclient-dev \
-    libpq-dev \
-    libxml2-dev \
-    libjson-c-dev \
-    libyajl-dev \
-    wget \
-    curl \
-    git
+# Install dependencies and Zabbix
+RUN apt-get update && apt-get install -y wget gnupg2 software-properties-common curl
+RUN wget https://repo.zabbix.com/zabbix/6.2/ubuntu/pool/main/z/zabbix-release/zabbix-release_6.2-4%2Bubuntu22.04_all.deb
+RUN dpkg -i zabbix-release_6.2-4+ubuntu22.04_all.deb
+RUN apt-get update && apt-get -y install zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent
 
-# Завантажуємо Zabbix сервер
-RUN wget https://repo.zabbix.com/zabbix/5.4/ubuntu/pool/main/z/zabbix-release/zabbix-release_5.4-1+ubuntu18.04_all.deb && \
-    dpkg -i zabbix-release_5.4-1+ubuntu18.04_all.deb && \
-    apt-get update && \
-    apt-get install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-agent
+# Install MariaDB
+RUN curl -LsS -O https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
+RUN bash mariadb_repo_setup --mariadb-server-version=10.6
+RUN apt-get update && apt-get -y install mariadb-common mariadb-server-10.6 mariadb-client-10.6
 
-# Налаштування бази даних для Zabbix
-RUN service mysql start && \
-    mysql -uroot -e "create database zabbix character set utf8 collate utf8_bin;" && \
-    mysql -uroot -e "grant all privileges on zabbix.* to zabbix@localhost identified by 'password';" && \
-    zcat /usr/share/doc/zabbix-server-mysql*/create.sql.gz | mysql -uzabbix -ppassword zabbix
+# Configure MariaDB
+RUN sed -i 's/bind-address/#bind-address/g' /etc/mysql/my.cnf
 
-# Налаштовуємо Zabbix сервер
-RUN sed -i 's/# DBPassword=/DBPassword=password/' /etc/zabbix/zabbix_server.conf && \
-    sed -i 's/# php_value date.timezone Europe\/Riga/php_value date.timezone Europe\/Kyiv/' /etc/zabbix/apache.conf
+# Start and enable MariaDB service
+RUN service mysql start && update-rc.d mysql defaults
 
-# Встановлюємо cron для Zabbix
-RUN apt-get install -y cron && \
-    echo '* * * * * root /usr/sbin/zabbix_server --check >/dev/null 2>&1' >> /etc/cron.d/zabbix
+# Wait for MySQL service to start
+RUN sleep 10
 
-# Використовуємо порт 80 для веб-інтерфейсу Zabbix
-EXPOSE 80
+# Create MariaDB user and database
+ENV USERNAME=myuser
+ENV PASSWORD=mypassword
+ENV DB=mydatabase
+RUN mysql -u root -e "CREATE USER '$USERNAME'@'localhost' IDENTIFIED BY '$PASSWORD';"
+RUN mysql -u root -e "GRANT ALL PRIVILEGES ON *.* TO '$USERNAME'@'localhost';"
+RUN mysql -u root -e "CREATE DATABASE $DB;"
+RUN mysql -u root -e "FLUSH PRIVILEGES;"
+RUN mysql -u root -e "SET GLOBAL log_bin_trust_function_creators = 1;"
 
-# Запускаємо службу Apache та Zabbix сервер
-CMD service apache2 start && service zabbix-server start && tail -f /var/log/apache2/error.log
+# Import Zabbix database schema
+RUN zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -u$USERNAME -p$PASSWORD $DB
+
+RUN mysql -u root -e "SET GLOBAL log_bin_trust_function_creators = 0;"
+
+# Configure Zabbix server
+RUN sed -i "s/DBName=.*/DBName=${DB}/" /etc/zabbix/zabbix_server.conf
+RUN sed -i "s/DBUser=.*/DBUser=${USERNAME}/" /etc/zabbix/zabbix_server.conf
+RUN sed -i "s/#\s*DBPassword=.*/DBPassword=${PASSWORD}/" /etc/zabbix/zabbix_server.conf
+
+# Configure firewall
+RUN apt-get -y install ufw
+RUN ufw enable
+RUN ufw allow 10050/tcp
+RUN ufw allow 10051/tcp
+RUN ufw allow 161/tcp
+RUN ufw allow 80/tcp
+RUN ufw reload
+
+# Start Zabbix services and Apache
+RUN service zabbix-server start && service zabbix-agent start
+RUN systemctl enable zabbix-server zabbix-agent
+RUN service apache2 restart && service apache2 enable
