@@ -15,14 +15,12 @@ RUN curl -LsS -O https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
 RUN bash mariadb_repo_setup --mariadb-server-version=10.6
 RUN apt-get update && apt-get -y install mariadb-common mariadb-server-10.6 mariadb-client-10.6
 
-# Configure MariaDB
-RUN sed -i 's/bind-address/#bind-address/g' /etc/mysql/my.cnf
-
 # Start and enable MariaDB service
 RUN service mysql start && update-rc.d mysql defaults
 
 # Wait for MySQL service to start
 RUN sleep 10
+
 
 # Create MariaDB user and database
 ENV USERNAME=myuser
