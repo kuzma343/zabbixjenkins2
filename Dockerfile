@@ -26,7 +26,8 @@ RUN /etc/init.d/postgresql start && \
 USER root
 
 # Import Zabbix database schema into PostgreSQL
-RUN su - postgres -c "pg_restore -U myuser -d mydatabase /usr/share/zabbix-sql-scripts/postgresql/schema.sql.gz"
+RUN schema_location=$(find / -name "schema.sql.gz" -print -quit) && \
+    su - postgres -c "pg_restore -U myuser -d mydatabase $schema_location"
 
 # Configure Zabbix server to use PostgreSQL
 RUN sed -i "s/DBHost=.*/DBHost=localhost/" /etc/zabbix/zabbix_server.conf
