@@ -1,6 +1,7 @@
+
 #!groovy
 //  groovy Jenkinsfile
-properties([disableConcurrentBuilds()])
+properties([disableConcurrentBuilds()])\
 
 pipeline  {
         agent { 
@@ -12,45 +13,21 @@ pipeline  {
         timestamps()
     }
     stages {
-        stage('Build Docker Image') {
+        stage("Git clone") {
             steps {
-                script {
-                    docker.image('docker').withRun('-it', 'zabbix2') {
-                        // Команда для збірки Docker образу
-                        sh 'docker build -t zabbix2 .'
-                    }
-                }
+                sh '''
+                cd /home/got/
+                git clone https://github.com/Makson8286/test           
+                '''
             }
-        }
-        
-        stage('Tag Docker Image') {
+        }    
+        stage("Work") {
             steps {
-                script {
-                    // Команда для тегування Docker образу
-                    sh 'docker tag zabbix2:latest kuzma343/zabbix2:latest'
-                }
+                sh '''
+                cd /home/got/test
+                docker-compose up -d
+                '''
             }
-        }
-        stage("docker login") {
-            steps {
-                echo " ============== docker login =================="
-                withCredentials([usernamePassword(credentialsId: 'DockerHub-Credentials', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                    sh '''
-                    docker login -u $USERNAME -p $PASSWORD
-                    '''
-                }
-            }
-        }
-        
-        stage('Docker Push') {
-            steps {
-                script {
-                    
-                    sh 'docker push kuzma343/zabbix2:latest'
-                }
-            }
-        }
-        
-        
+        }   
     }
 }
