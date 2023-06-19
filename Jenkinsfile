@@ -11,14 +11,7 @@ pipeline  {
         timestamps()
     }
     stages {
-        stage("Git clone") {
-            steps {
-                sh '''
-                
-                git clone https://git.rdr-it.io/docker/zabbix.git          
-                '''
-            }
-        }    
+       
         stage("Work") {
             steps {
                 sh '''
