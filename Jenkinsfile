@@ -15,7 +15,7 @@ pipeline  {
             steps {
                 sh '''
                 
-                git clone https://git.rdr-it.io/docker/zabbix.git .         
+                git clone https://git.rdr-it.io/docker/zabbix.git          
                 '''
             }
         }    
