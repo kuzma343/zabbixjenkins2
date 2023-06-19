@@ -24,9 +24,9 @@ pipeline  {
             steps {
                 script {
                     // Команда для тегування Docker образу
-                    sh 'docker tag zabbix/zabbix-web-nginx-mysql:latest kuzma343/zabbix-web:latest'
-                        sh 'docker tag zabbix/zabbix-server-mysql:latest kuzma343/zabbix-server:latest'
-                        sh 'docker tag mysql:latest kuzma343/mysql:latest'
+                    sh 'docker tag zabbix/zabbix-web-nginx-mysql:latest kuzma343/my-repository:zabbix-web'
+                        sh 'docker tag zabbix/zabbix-server-mysql:latest kuzma343/my-repository:zabbix-server'
+                        sh 'docker tag mysql:latest kuzma343/my-repository:mysql'
                 }
             }
         }
@@ -45,9 +45,9 @@ pipeline  {
             steps {
                 script {
                     
-                    sh 'docker push kuzma343/zabbix-web:latest'
-                        sh 'docker push kuzma343/zabbix-server:latest'
-                        sh 'docker push kuzma343/mysql:latest'
+                    sh 'docker push kuzma343/my-repository:zabbix-web'
+                        sh 'docker push kuzma343/my-repository:zabbix-server'
+                        sh 'docker push kuzma343/my-repository:mysql'
                 }
             }
         }
