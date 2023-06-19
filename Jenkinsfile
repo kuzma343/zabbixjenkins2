@@ -14,7 +14,7 @@ pipeline  {
         stage("Git clone") {
             steps {
                 sh '''
-                cd /home/kuzma/
+                
                 git clone https://git.rdr-it.io/docker/zabbix.git .         
                 '''
             }
