@@ -22,7 +22,7 @@ pipeline  {
         stage("Work") {
             steps {
                 sh '''
-                cd env_vars
+               
                 docker-compose up -d
                 '''
             }
