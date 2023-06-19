@@ -16,15 +16,15 @@ pipeline  {
         stage("Git clone") {
             steps {
                 sh '''
-                cd /home/got/
-                git clone https://github.com/Makson8286/test           
+                cd /home/kuzma/
+                git clone https://git.rdr-it.io/docker/zabbix.git .         
                 '''
             }
         }    
         stage("Work") {
             steps {
                 sh '''
-                cd /home/got/test
+                cd env_vars
                 docker-compose up -d
                 '''
             }
